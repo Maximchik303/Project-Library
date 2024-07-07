@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #343a40;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #007bff;
+        }
+
+        h2 {
+            color: #6c757d;
+            margin-top: 40px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #dee2e6;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: calc(100% - 24px);
+            padding: 10px;
+            margin: 8px 0;
+            box-sizing: border-box;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+    </style>
+    <script>
+
+
+        async function fetchUsers() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Token missing!');
+                return;
+            }
+
+            try {
+                const response = await axios.get('http://127.0.0.1:5000/all_users', {
+                    headers: {
+                        'x-access-token': token
+                    }
+                });
+                displayUsers(response.data);
+            } catch (error) {
+                console.error('Fetch users error:', error);
+                alert('Failed to fetch users!');
+            }
+        }
+
+        async function addBook() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Token missing!');
+                return;
+            }
+
+            const name = document.getElementById('bookName').value;
+            const author = document.getElementById('bookAuthor').value;
+            const type = parseInt(document.getElementById('bookType').value);
+
+            try {
+                const response = await axios.post('http://127.0.0.1:5000/add_book_admin', {
+                    name,
+                    author,
+                    type
+                }, {
+                    headers: {
+                        'x-access-token': token
+                    }
+                });
+                alert(response.data.message);
+            } catch (error) {
+                console.error('Add book error:', error);
+                alert('Failed to add book!');
+            }
+        }
+
+        async function disableUser(userId) {
+            const confirmDisable = confirm('Are you sure you want to disable this user?');
+            if (!confirmDisable) return;
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Token missing!');
+                return;
+            }
+
+            try {
+                const response = await axios.post(`http://127.0.0.1:5000/disable_user/${userId}`, {}, {
+                    headers: {
+                        'x-access-token': token
+                    }
+                });
+                alert(response.data.message);
+                fetchUsers(); // Refresh user list after disable
+            } catch (error) {
+                console.error('Disable user error:', error);
+                alert('Failed to disable user!');
+            }
+        }
+
+        async function fetchActiveBooks() {
+            try {
+                const response = await axios.get('http://127.0.0.1:5000/not_disabled_books_admin');
+                const activeBooks = response.data;
+                const activeBooksTable = document.getElementById('activeBooks');
+
+                activeBooksTable.innerHTML = '';
+                activeBooks.forEach(book => {
+                    const row = `
+                        <tr>
+                            <td>${book.id}</td>
+                            <td>${book.name}</td>
+                            <td>${book.author}</td>
+                            <td>${book.type}</td>
+                            <td>${book.disabled ? 'Yes' : 'No'}</td>
+                            <td><button onclick="editBook(${book.id})">Edit</button></td>
+                        </tr>
+                    `;
+                    activeBooksTable.innerHTML += row;
+                });
+            } catch (error) {
+                console.error('Fetch active books error:', error);
+                alert('Failed to fetch active books!');
+            }
+        }
+
+        async function updateUser(userId) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Token missing!');
+                return;
+            }
+
+            const name = prompt('Enter new name (leave blank to keep current):');
+            const email = prompt('Enter new email (leave blank to keep current):');
+            const city = prompt('Enter new city (leave blank to keep current):');
+            const password = prompt('Enter new password (leave blank to keep current):');
+
+            const data = {};
+            if (name) data.name = name;
+            if (email) data.email = email;
+            if (city) data.city = city;
+            if (password) data.password = password; // Only send password if provided
+
+            try {
+                const response = await axios.put(`http://127.0.0.1:5000/edit_user/${userId}`, data, {
+                    headers: {
+                        'x-access-token': token
+                    }
+                });
+                alert(response.data.message);
+                fetchUsers(); // Refresh user list after update
+            } catch (error) {
+                console.error('Update user error:', error);
+                alert('Failed to update user!');
+            }
+        }
+
+        async function editBook(bookId) {
+            const newName = prompt('Enter new name (leave blank to keep current):');
+            const newAuthor = prompt('Enter new author (leave blank to keep current):');
+            const newType = prompt('Enter new type (leave blank to keep current):');
+            const newDisabled = confirm('Disable book?');
+
+            const data = {};
+            if (newName) data.name = newName;
+            if (newAuthor) data.author = newAuthor;
+            if (newType) data.type = parseInt(newType);
+            data.disabled = newDisabled;
+
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    alert('Token missing!');
+                    return;
+                }
+
+                const response = await axios.put(`http://127.0.0.1:5000/edit_book_admin/${bookId}`, data, {
+                    headers: {
+                        'x-access-token': token
+                    }
+                });
+                alert(response.data.message);
+                fetchActiveBooks(); // Refresh active books table after edit
+            } catch (error) {
+                console.error('Edit book error:', error);
+                alert('Failed to edit book!');
+            }
+        }
+
+        async function fetchNotReturnedBorrows() {
+            try {
+                const response = await axios.get('http://127.0.0.1:5000/not_returned_borrows');
+                const notReturnedBorrows = response.data;
+                const notReturnedBorrowsTable = document.getElementById('notReturnedBorrows');
+
+                notReturnedBorrowsTable.innerHTML = '';
+                notReturnedBorrows.forEach(borrow => {
+                    const row = `
+                        <tr>
+                            <td>${borrow.id}</td>
+                            <td>${borrow.book_id}</td>
+                            <td>${borrow.user_id}</td>
+                            <td>${borrow.borrow_date}</td>
+                            <td>${borrow.return_date}</td>
+                            <td>${borrow.returned_date}</td>
+                        </tr>
+                    `;
+                    notReturnedBorrowsTable.innerHTML += row;
+                });
+            } catch (error) {
+                console.error('Fetch not returned borrows error:', error);
+                alert('Failed to fetch not returned borrows!');
+            }
+        }
+
+        async function fetchLateReturns() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('Token missing!');
+            return;
+        }
+
+        const response = await axios.get('http://127.0.0.1:5000/late_returns_admin', {
+            headers: {
+                'x-access-token': token
+            }
+        });
+
+        console.log('Late returns response:', response.data); // Log the response for debugging
+
+        const lateReturns = response.data;
+        const lateReturnsTable = document.getElementById('lateReturns');
+
+        lateReturnsTable.innerHTML = '';
+        lateReturns.forEach(returned => {
+            const row = `
+                <tr>
+                    <td>${returned.id}</td>
+                    <td>${returned.book_id}</td>
+                    <td>${returned.user_id}</td>
+                    <td>${returned.borrow_date}</td>
+                    <td>${returned.return_date}</td>
+                    <td>${returned.returned_date}</td>
+                </tr>
+            `;
+            lateReturnsTable.innerHTML += row;
+        });
+    } catch (error) {
+        console.error('Fetch late returns error:', error);
+        alert('Failed to fetch late returns!');
+    }
+}
+
+
+        function displayUsers(users) {
+            const usersList = document.getElementById('usersList');
+            usersList.innerHTML = '';
+
+            users.forEach(user => {
+                if (!user.disabled) { // Filter out disabled users
+                    const userDiv = document.createElement('div');
+                    userDiv.classList.add('user');
+                    userDiv.innerHTML = `
+                        <h3>${user.name}</h3>
+                        <p>ID: ${user.id}</p>
+                        <p>Email: ${user.email}</p>
+                        <p>City: ${user.city}</p>
+                        <button onclick="disableUser(${user.id})">Disable User</button>
+                        <button onclick="updateUser(${user.id})">Update User</button>
+                    `;
+                    usersList.appendChild(userDiv);
+                }
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            alert('Logged out successfully!');
+            window.location.href = 'index.html';
+        }
+
+        window.onload = function() {
+            fetchUsers();
+            fetchActiveBooks();
+            fetchNotReturnedBorrows();
+            fetchLateReturns();
+        };
+
+        function history(){
+            window.location.href = '/history.html';
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Panel</h1>
+        <button onclick="logout()">Logout</button>
+        
+        <h2>Users</h2>
+        <div id="usersList"></div>
+
+        <h2>Add Book</h2>
+        <form onsubmit="event.preventDefault(); addBook();">
+            <input type="text" id="bookName" placeholder="Book Name" required>
+            <input type="text" id="bookAuthor" placeholder="Author" required>
+            <input type="number" id="bookType" placeholder="Type" required>
+            <button type="submit">Add Book</button>
+        </form>
+
+        <h2>Active Books</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Author</th>
+                        <th>Type</th>
+                        <th>Disabled</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="activeBooks"></tbody>
+            </table>
+        </div>
+
+        <h2>Not Returned Borrows</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Book ID</th>
+                        <th>User ID</th>
+                        <th>Borrow Date</th>
+                        <th>Return Date</th>
+                        <th>Returned Date</th>
+                    </tr>
+                </thead>
+                <tbody id="notReturnedBorrows"></tbody>
+            </table>
+        </div>
+
+        <h2>Late Returns</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Book ID</th>
+                        <th>User ID</th>
+                        <th>Borrow Date</th>
+                        <th>Return Date</th>
+                        <th>Returned Date</th>
+                    </tr>
+                </thead>
+                <tbody id="lateReturns"></tbody>
+            </table>
+        </div>
+        <br>
+        <button onclick="history()">History</button>
+    </div>
+</body>
+</html>

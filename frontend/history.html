@@ -1,0 +1,242 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>History</title>
+        <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+        <style>
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }
+
+            table, th, td {
+                border: 1px solid black;
+            }
+
+            th, td {
+                padding: 10px;
+                text-align: left;
+            }
+
+            th {
+                background-color: #f2f2f2;
+            }
+
+            input[type="text"] {
+                width: 100%;
+                padding: 5px;
+                margin-top: 10px;
+                margin-bottom: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>History Page</h1>
+        
+        <div>
+            <h2>All Users</h2>
+            <input type="text" id="userSearch" placeholder="Search by User ID" onkeyup="filterTableById('userSearch', 'usersTable')">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Disabled</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTable">
+                    <!-- User data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div>
+            <h2>All Books</h2>
+            <input type="text" id="bookSearch" placeholder="Search by Book ID" onkeyup="filterTableById('bookSearch', 'booksTable')">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Author</th>
+                        <th>Disabled</th>
+                    </tr>
+                </thead>
+                <tbody id="booksTable">
+                    <!-- Book data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div>
+            <h2>All Borrows</h2>(one filter at a time)
+            <input type="text" id="borrowSearch" placeholder="Search by Borrow ID" onkeyup="filterTableById('borrowSearch', 'borrowsTable')">
+            <input type="text" id="borrowSearch2" placeholder="Search by Borrow User ID" onkeyup="filterTableById2('borrowSearch2', 'borrowsTable')">
+            <input type="text" id="borrowSearch3" placeholder="Search by Borrow Book ID" onkeyup="filterTableById3('borrowSearch3', 'borrowsTable')">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User ID</th>
+                        <th>Book ID</th>
+                        <th>Borrow Date</th>
+                        <th>Return Date</th>
+                        <th>Returned Date</th>
+                    </tr>
+                </thead>
+                <tbody id="borrowsTable">
+                    <!-- Borrow data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <script>
+            async function fetchHistoryData() {
+                try {
+                    const adminToken = localStorage.getItem('adminToken');
+                    if (!adminToken) {
+                        alert('Unauthorized access! Please log in as an admin.');
+                        window.location.href = '/index.html';  // Redirect to login login page if not an admin
+                        return;
+                    }
+
+                    const response = await axios.get('http://127.0.0.1:5000/history', {
+                        headers: {
+                            'x-access-token': adminToken
+                        }
+                    });
+
+                    const historyData = response.data;
+                    console.log('History data:', historyData);
+
+                    // Display users
+                    const usersTable = document.getElementById('usersTable');
+                    usersTable.innerHTML = '';
+                    historyData.users.forEach(user => {
+                        const row = `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                                <td>${user.disabled ? 'Disabled' : 'Active'}</td>
+                            </tr>
+                        `;
+                        usersTable.innerHTML += row;
+                    });
+
+                    // Display books
+                    const booksTable = document.getElementById('booksTable');
+                    booksTable.innerHTML = '';
+                    historyData.books.forEach(book => {
+                        const row = `
+                            <tr>
+                                <td>${book.id}</td>
+                                <td>${book.name}</td>
+                                <td>${book.author}</td>
+                                <td>${book.disabled ? 'Disabled' : 'Active'}</td>
+                            </tr>
+                        `;
+                        booksTable.innerHTML += row;
+                    });
+
+                    // Display borrows
+                    const borrowsTable = document.getElementById('borrowsTable');
+                    borrowsTable.innerHTML = '';
+                    historyData.borrows.forEach(borrow => {
+                        const row = `
+                            <tr>
+                                <td>${borrow.id}</td>
+                                <td>${borrow.user_id}</td>
+                                <td>${borrow.book_id}</td>
+                                <td>${borrow.borrow_date}</td>
+                                <td>${borrow.return_date}</td>
+                                <td>${borrow.returned_date || 'Not Returned'}</td>
+                            </tr>
+                        `;
+                        borrowsTable.innerHTML += row;
+                    });
+                } catch (error) {
+                    console.error('Fetch history data error:', error);
+                    alert('Failed to fetch history data!');
+                }
+            }
+
+
+            function filterTableById(inputId, tableId) {
+        const input = document.getElementById(inputId);
+        const filter = input.value.trim().toLowerCase(); // Trim input and convert to lowercase
+        const table = document.getElementById(tableId);
+        const trs = table.getElementsByTagName('tr');
+
+        for (let i = 0; i < trs.length; i++) {
+            const tds = trs[i].getElementsByTagName('td');
+            if (tds.length > 0) {
+                const idCell = tds[0]; // ID column is always the first column
+                const cellValue = idCell.textContent || idCell.innerText;
+                const idValue = cellValue.trim().toLowerCase(); // Trim cell content and convert to lowercase
+
+                // Check for exact match or empty filter
+                if (filter === '' || idValue === filter) {
+                    trs[i].style.display = '';
+                } else {
+                    trs[i].style.display = 'none';
+                }
+            }
+        }
+    }
+
+    function filterTableById2(inputId, tableId) {
+        const input = document.getElementById(inputId);
+        const filter = input.value.trim().toLowerCase(); // Trim input and convert to lowercase
+        const table = document.getElementById(tableId);
+        const trs = table.getElementsByTagName('tr');
+
+        for (let i = 0; i < trs.length; i++) {
+            const tds = trs[i].getElementsByTagName('td');
+            if (tds.length > 0) {
+                const idCell = tds[1]; // ID column is always the first column
+                const cellValue = idCell.textContent || idCell.innerText;
+                const idValue = cellValue.trim().toLowerCase(); // Trim cell content and convert to lowercase
+
+                // Check for exact match or empty filter
+                if (filter === '' || idValue === filter) {
+                    trs[i].style.display = '';
+                } else {
+                    trs[i].style.display = 'none';
+                }
+            }
+        }
+    }
+
+    function filterTableById3(inputId, tableId) {
+        const input = document.getElementById(inputId);
+        const filter = input.value.trim().toLowerCase(); // Trim input and convert to lowercase
+        const table = document.getElementById(tableId);
+        const trs = table.getElementsByTagName('tr');
+
+        for (let i = 0; i < trs.length; i++) {
+            const tds = trs[i].getElementsByTagName('td');
+            if (tds.length > 0) {
+                const idCell = tds[2]; // ID column is always the first column
+                const cellValue = idCell.textContent || idCell.innerText;
+                const idValue = cellValue.trim().toLowerCase(); // Trim cell content and convert to lowercase
+
+                // Check for exact match or empty filter
+                if (filter === '' || idValue === filter) {
+                    trs[i].style.display = '';
+                } else {
+                    trs[i].style.display = 'none';
+                }
+            }
+        }
+    }
+
+            // Initial fetch on page load
+            fetchHistoryData();
+        </script>
+    </body>
+    </html>
